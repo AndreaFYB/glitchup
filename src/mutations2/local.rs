@@ -31,12 +31,12 @@ impl Mutation for Chaos {
     }
 }
 
-pub struct Compress {
+pub struct Expand {
     pub by: usize,
     pub chunksize: usize,
 }
 
-impl Mutation for Compress {
+impl Mutation for Expand {
     fn get_name(&self) -> String {
         "compress".into()
     }

@@ -1,11 +1,12 @@
 pub mod local;
 pub mod global;
 
+#[derive(Debug)]
 pub enum AreaType {
     Local, Global,
 }
 
-pub trait Mutation {
+pub trait Mutation: Sync + Send {
     fn get_name(&self) -> String;
     fn get_details(&self) -> String;
     fn bend(&self, to_mutate: &mut [u8]);
@@ -15,7 +16,7 @@ pub trait Mutation {
 
 pub enum MutationKind {
     Chaos,
-    Compress,
+    Expand,
     Accelerate,
     Increment,
     Loop,
@@ -31,7 +32,7 @@ impl From<&str> for MutationKind {
     fn from(value: &str) -> Self {
         match value {
             "chaos" => MutationKind::Chaos,
-            "compress" => MutationKind::Compress,
+            "expand" => MutationKind::Expand,
             "accelerate" => MutationKind::Accelerate,
             "increment" => MutationKind::Increment,
             "loop" => MutationKind::Loop,

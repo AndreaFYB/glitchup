@@ -8,7 +8,7 @@ use rand::{distributions::uniform::SampleUniform, Rng};
 use rand::seq::SliceRandom;
 use serde_yaml::Mapping;
 
-use crate::{mutations, mutations2::{global::{Shift, Swap}, local::{Accelerate, Chaos, Compress, Increment, Loop, Multiply, Reverse, Shuffle, Voidout}, Mutation, MutationKind}};
+use crate::{mutations, mutations2::{global::{Shift, Swap}, local::{Accelerate, Chaos, Expand, Increment, Loop, Multiply, Reverse, Shuffle, Voidout}, Mutation, MutationKind}};
 
 use super::ioutils::{load_as_bytes_from_path, load_as_bytes_from_url};
 
@@ -103,7 +103,7 @@ pub fn get_default<'a>(root_value: &'a serde_yaml::Value, key: &str) -> &'a serd
 
 pub fn parse_mutations<'a, 'b>(rng: &mut impl Rng, root_value: &serde_yaml::Value) -> Vec<Box<dyn Mutation>> where
     Chaos: Mutation,
-    Compress: Mutation,
+    Expand: Mutation,
     Accelerate: Mutation,
     Increment: Mutation,
     Loop: Mutation,
@@ -132,7 +132,7 @@ pub fn parse_mutations<'a, 'b>(rng: &mut impl Rng, root_value: &serde_yaml::Valu
 
 pub fn parse_mutation<'a, 'b>(rng: &mut impl Rng, mutation: &Mapping, root_value: &serde_yaml::Value) -> Box<dyn Mutation> where
     Chaos: Mutation,
-    Compress: Mutation,
+    Expand: Mutation,
     Accelerate: Mutation,
     Increment: Mutation,
     Loop: Mutation,
@@ -149,7 +149,7 @@ pub fn parse_mutation<'a, 'b>(rng: &mut impl Rng, mutation: &Mapping, root_value
 
     match kind {
         MutationKind::Chaos => Box::new(parse_chaos(rng, mutation, root_value)),
-        MutationKind::Compress => Box::new(parse_compress(rng, mutation, root_value)),
+        MutationKind::Expand => Box::new(parse_expand(rng, mutation, root_value)),
         MutationKind::Accelerate => Box::new(parse_accelerate(rng, mutation, root_value)),
         MutationKind::Increment => Box::new(parse_increment(rng, mutation, root_value)),
         MutationKind::Loop => Box::new(parse_loop(rng, mutation, root_value)),
@@ -174,21 +174,21 @@ fn parse_chaos(rng: &mut impl Rng, mutation: &Mapping, root_value: &serde_yaml::
     Chaos { chunksize: chunksize as usize }
 }
 
-fn parse_compress(rng: &mut impl Rng, mutation: &Mapping, root_value: &serde_yaml::Value) -> Compress {
-    let mutation = mutation.get("compress").unwrap()
-        .as_mapping().expect("[compress] was found but it wasn't a mapping.");
+fn parse_expand(rng: &mut impl Rng, mutation: &Mapping, root_value: &serde_yaml::Value) -> Expand {
+    let mutation = mutation.get("expand").unwrap()
+        .as_mapping().expect("[expand] was found but it wasn't a mapping.");
 
     let by = 
         extract_u64_param(
             rng, mutation, root_value,
-            "compress", "by");
+            "expand", "by");
 
     let chunksize = 
         extract_u64_param(
             rng, mutation, root_value,
-            "compress", "chunksize");
+            "expand", "chunksize");
 
-    Compress {
+    Expand {
         by: by as usize,
         chunksize: chunksize as usize,
     }
@@ -402,7 +402,7 @@ macro_rules! param_parser {
             } else if let Some(range) = param.as_mapping() {
                 let min = range.get("min")
                     .expect(format!("expected [{}.min] due to mapping - not present.", property_path).as_str());
-                let max = range.get("min")
+                let max = range.get("max")
                     .expect(format!("expected [{}.max] due to mapping - not present.", property_path).as_str());
         
                 let min = min.$($cast_method)*.expect(format!("[{}.min] must be {} - wasn't.", property_path, $type_description).as_str());

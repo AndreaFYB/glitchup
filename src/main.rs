@@ -8,7 +8,7 @@ mod configuration;
 mod mutations2;
 mod config;
 
-use std::error::Error;
+use std::{error::Error, io::Cursor};
 
 use benders::KaBender;
 use config::{ioutils::{load_yaml_file, save_bytes_to_file}, parser::{parse_app_cfg, parse_mode, parse_mutations, parse_source, AppCfg}};
@@ -17,7 +17,7 @@ use configuration::Configuration;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use rayon::prelude::*;
 
-use crate::mutations2::{local::Increment, AreaType, Mutation};
+use crate::{config::ioutils::load_as_image_from_bytes, mutations2::{local::{Expand, Increment}, AreaType, Mutation}};
 
 fn main2() {
     // Initialises the configuration for the application.
@@ -50,36 +50,47 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut rng = StdRng::from_entropy();
 
     let mut file = source.perform();
+    
+    // PRE-CONVERT
+    let format = image::ImageFormat::Tiff;
+    let mut image = load_as_image_from_bytes(&file)?;
+    let mut file = Vec::new();
+    image.write_to(&mut Cursor::new(&mut file), format)?;
+    
     let bytesize = file.len();
-
     println!("file in memory has [{} bytes]", bytesize);
 
-    let mut nums = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
-    println!("nums = {:?}", nums);
-    let testmut = Increment { by: 2, chunksize: 3 };
-    testmut.bend(&mut nums[3..5]);
-    println!("nums = {:?}", nums);
+    // let mut nums = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
+    // println!("nums = {:?}", nums);
+    // let testmut = Compress { by: 2, chunksize: 3 };
+    // testmut.bend(&mut nums);
+    // println!("nums = {:?}", nums);
 
-    return Ok(());
+    // return Ok(());
 
     for i in 0..app_cfg.output_n {
+        // comment this line out for sequence mode.
+        let mut file = file.clone();
+
         let mutations = parse_mutations(&mut rng, &yaml);
 
-        for mut mutation in mutations {
+        for mutation in mutations.iter() {
+            // println!("applying mut: {} which acts in the area: {:?}", mutation.get_name(), mutation.get_type());
             match mutation.get_type() {
                 AreaType::Global => {
-                    mutation.as_mut().bend(&mut file)
+                    mutation.bend(&mut file)
                 },
                 AreaType::Local => {
                     let chunksize = mutation.get_chunksize();
-                    mutation.as_mut().bend(
-                        &mut file[0..rng.gen_range(chunksize, bytesize-chunksize)])
+                    let chunkstart = rng.gen_range(0, bytesize - chunksize);
+
+                    mutation.bend(
+                        &mut file[chunkstart..chunkstart+chunksize]);
                 }
             }
-            mutation.as_mut().bend(&mut file);
-        }
+        };
 
-        println!("saving to file: {}-{}.jpeg", app_cfg.output_path, i);
+        // println!("saving to file: {}-{}.jpeg", app_cfg.output_path, i);
         save_bytes_to_file(format!("{}-{}.jpg", app_cfg.output_path, i).as_str(), &file)?;
     }
 
