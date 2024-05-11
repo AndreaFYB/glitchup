@@ -1,6 +1,6 @@
 use super::{loaders::Loader};
 
-use memmap::MmapMut;
+use memmap2::MmapMut;
 
 use super::mutations::*;
 

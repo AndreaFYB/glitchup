@@ -1,0 +1,28 @@
+source:
+  url: "https://media.discordapp.net/attachments/908523233471520828/1238814163942244423/image.png?ex=6640a718&is=663f5598&hm=894a053abb0952255dcccb480af3a05359754fa3aae7abed1b599a5cbeafc982&=&format=jpeg"
+
+config:
+  output:
+    path: "./output/output"
+    num: 10
+
+mode: bytes
+
+defaults:
+  chunksize: 500
+
+mutations:
+  - increment:
+      by: 2
+
+# chains:
+#   - mutations:
+#       compress:
+#         by: 2
+#         # by: {"min": 2, "max": 5}
+#       multiply:
+#         by: 0.9
+#   - mutations:
+#       shift:
+#         by: 200
+  

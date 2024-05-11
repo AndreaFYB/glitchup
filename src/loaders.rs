@@ -1,5 +1,5 @@
 use std::fs::{OpenOptions, copy, rename, remove_file};
-use memmap::MmapMut;
+use memmap2::MmapMut;
 use std::path::PathBuf;
 use std::io::{Error, ErrorKind};
 
@@ -14,7 +14,7 @@ impl Loader {
     }
 
     /// Constructs a mutable memory map of file at `name`.
-    pub fn map_file_mut(name: &str) -> std::io::Result<memmap::MmapMut> {
+    pub fn map_file_mut(name: &str) -> std::io::Result<memmap2::MmapMut> {
         let path : PathBuf = PathBuf::from(name);
         let file = OpenOptions::new()
             .read(true)
@@ -27,7 +27,7 @@ impl Loader {
     }
 
     /// A combination of `copy_file` and `map_file_mut`.
-    pub fn init_file_mut(from: &str, to:&str) -> std::io::Result<memmap::MmapMut> {
+    pub fn init_file_mut(from: &str, to:&str) -> std::io::Result<memmap2::MmapMut> {
         Loader::copy_file(from, to.clone())?;
         Loader::map_file_mut(to)
     }
