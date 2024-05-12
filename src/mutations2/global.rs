@@ -39,7 +39,7 @@ impl Mutation for Swap {
 }
 
 pub struct Shift {
-    pub from: usize,
+    // pub from: usize,
     pub by: usize,
     pub chunksize: usize,
 }
@@ -50,11 +50,12 @@ impl Mutation for Shift {
     }
 
     fn get_details(&self) -> String {
-        format!("[from={} by={}]", self.from, self.by)
+        format!("[by={}]", self.by)
     }
 
     fn bend(&self, to_mutate: &mut [u8]) {
-        to_mutate.as_mut().moveslice(self.from..self.from+self.chunksize, self.from+self.by);
+        let from = thread_rng().gen_range(0, to_mutate.len() - self.chunksize - self.by);
+        to_mutate.as_mut().moveslice(from..from+self.chunksize, from+self.by);
     }
 
     fn get_type(&self) -> AreaType {

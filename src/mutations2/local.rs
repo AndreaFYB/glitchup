@@ -32,11 +32,46 @@ impl Mutation for Chaos {
 }
 
 pub struct Expand {
-    pub by: usize,
+    pub by: f64,
     pub chunksize: usize,
 }
 
 impl Mutation for Expand {
+    fn get_name(&self) -> String {
+        "expand".into()
+    }
+
+    fn get_details(&self) -> String {
+        format!("[by={}]", self.by)
+    }
+
+    fn bend(&self, to_mutate: &mut [u8]) {
+        let length = to_mutate.as_mut().len();
+        let mut replacement = vec![0; length];
+
+        for idx in 0..length {
+            let source_idx = (idx as f64 / self.by).floor() as usize;
+            replacement[idx] = to_mutate.as_mut()[source_idx];
+        }
+
+        to_mutate.as_mut().swap_with_slice(&mut replacement);
+    }
+
+    fn get_type(&self) -> AreaType {
+        AreaType::Local
+    }
+
+    fn get_chunksize(&self) -> usize {
+        self.chunksize
+    }
+}
+
+pub struct Compress {
+    pub by: f64,
+    pub chunksize: usize,
+}
+
+impl Mutation for Compress {
     fn get_name(&self) -> String {
         "compress".into()
     }
@@ -50,7 +85,8 @@ impl Mutation for Expand {
         let mut replacement = vec![0; length];
 
         for idx in 0..length {
-            replacement[idx] = to_mutate.as_mut()[idx / self.by];
+            let source_idx = (idx as f64 * self.by).floor() as usize % length;
+            replacement[idx] = to_mutate.as_mut()[source_idx];
         }
 
         to_mutate.as_mut().swap_with_slice(&mut replacement);

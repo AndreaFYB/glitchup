@@ -17,6 +17,7 @@ pub trait Mutation: Sync + Send {
 pub enum MutationKind {
     Chaos,
     Expand,
+    Compress,
     Accelerate,
     Increment,
     Loop,
@@ -33,6 +34,7 @@ impl From<&str> for MutationKind {
         match value {
             "chaos" => MutationKind::Chaos,
             "expand" => MutationKind::Expand,
+            "compress" => MutationKind::Compress,
             "accelerate" => MutationKind::Accelerate,
             "increment" => MutationKind::Increment,
             "loop" => MutationKind::Loop,

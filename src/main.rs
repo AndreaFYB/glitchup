@@ -8,12 +8,13 @@ mod configuration;
 mod mutations2;
 mod config;
 
-use std::{error::Error, io::Cursor};
+use std::{error::Error, io::{Cursor, Read}};
 
 use benders::KaBender;
 use config::{ioutils::{load_yaml_file, save_bytes_to_file}, parser::{parse_app_cfg, parse_mode, parse_mutations, parse_source, AppCfg}};
 use configuration::Configuration;
 
+use image::{codecs::tiff::{TiffDecoder, TiffEncoder}, DynamicImage, ImageEncoder};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use rayon::prelude::*;
 
@@ -54,8 +55,14 @@ fn main() -> Result<(), Box<dyn Error>> {
     // PRE-CONVERT
     let format = image::ImageFormat::Tiff;
     let mut image = load_as_image_from_bytes(&file)?;
+    // let mut file = image.into_luma8().into_raw();
+    // let mut image = load_as_image_from_bytes(&file)?;
     let mut file = Vec::new();
     image.write_to(&mut Cursor::new(&mut file), format)?;
+
+    // let mut cursor = Cursor::new(&mut file);
+    // let encoder = TiffEncoder::new(&mut cursor);
+    // encoder.encode(image.as_bytes(), image.width(), image.height(), image::ColorType::La8)?;
     
     let bytesize = file.len();
     println!("file in memory has [{} bytes]", bytesize);
@@ -91,7 +98,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         };
 
         // println!("saving to file: {}-{}.jpeg", app_cfg.output_path, i);
-        save_bytes_to_file(format!("{}-{}.jpg", app_cfg.output_path, i).as_str(), &file)?;
+        save_bytes_to_file(format!("{}-{}.{}", app_cfg.output_path, i, format.extensions_str()[0]).as_str(), &file)?;
     }
 
     Ok(())

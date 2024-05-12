@@ -1,1 +1,3 @@
 ffmpeg -f image2 -framerate 15 -i "kit (%d).tif" -vf scale=160:-1 video.gif
+
+ffmpeg.exe -f image2 -i ./output/output-%d.tiff -vf scale=160:-1 out.gif

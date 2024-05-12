@@ -1,5 +1,5 @@
 source:
-  url: "https://img.cdn.cratecode.com/info/headerimg/julia-set.1vrz.webp?format=auto&width=3840"
+  url: "https://science.nasa.gov/wp-content/uploads/2023/09/Carina_Nebula-1.jpeg"
 
 config:
   output:
@@ -9,18 +9,31 @@ config:
 mode: bytes
 
 defaults:
-  chunksize: 14000000
+  chunksize: 4000000
 
 mutations:
   # - expand:
       # by: {"min": 2, "max": 20 }
-  - reverse: {}
+  # - reverse: {}
   # - accelerate:
   #     from: 0
   #     by: {"min": 1, "max": 10}
-  #     after: {"min": 50000, "max": 400000}
+  #     after: {"min": 100, "max": 100000}
   # - multiply:
-  #     by: {"min": 2, "max": 10}
+  #     by: {"min": 1, "max": 1.3}
+  - compress:
+      by: {"min": 1, "max": 5}
+  - expand:
+      by: {"min": 1, "max": 5}
+  # - reverse:
+  #     {}
+  # - shift:
+  #     by:
+  #       - 1
+  #       - 10
+  #       - 100
+  # - increment:
+  #     by: {"min": 1, "max": 100}
 
 # chains:
 #   - mutations:
