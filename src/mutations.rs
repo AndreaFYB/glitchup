@@ -11,7 +11,7 @@ use moveslice::Moveslice;
 use std::sync::{Arc, Mutex};
 
 fn index_boundary(data: &[u8]) -> (usize, usize) {
-    (data.len()/50, data.len())
+    (data.len()/10, data.len())
 }
 
 fn generate_index(data: &[u8]) -> usize {
