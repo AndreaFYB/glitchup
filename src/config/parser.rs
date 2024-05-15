@@ -14,9 +14,14 @@ use crate::{mutations, mutations2::{global::{Shift, Swap}, local::{Accelerate, C
 
 use super::ioutils::{load_as_bytes_from_path, load_as_bytes_from_url};
 
+pub struct Output {
+    pub path: String,
+    pub extension: String,
+    pub num: usize,
+}
+
 pub struct AppCfg {
-    pub output_path: String,
-    pub output_n: usize,
+    pub output: Output,
 }
 
 pub fn parse_app_cfg(root_value: &serde_yaml::Value) -> AppCfg {
@@ -24,17 +29,26 @@ pub fn parse_app_cfg(root_value: &serde_yaml::Value) -> AppCfg {
         .get("config").expect("[config] was not present. is required.")
         .as_mapping().expect("[config] must be a map. wasn't.");
 
+    let extension = root_value
+        .get("extension").expect("[extension] was not present. is required.")
+        .as_mapping().expect("[extension] must be a map. wasn't.");
+
     let output = config
         .get("output").expect("[config.output] was not present. is required.")
         .as_mapping().expect("[config.output] must be a map. wasn't.");
 
     AppCfg {
-        output_path: output
-            .get("path").expect("[config.output.path] was not present. is required.")
-            .as_str().expect("[config.output.path] must be a string. wasn't.").into(),
-        output_n: output
-            .get("num").expect("[config.output.num] was not present. is required.")
-            .as_u64().expect("[config.output.num] must be a positive whole number. wasn't.") as usize,
+        output: Output {
+            path: output
+                .get("path").expect("[config.output.path] was not present. is required.")
+                .as_str().expect("[config.output.path] must be a string. wasn't.").into(),
+            extension: output
+                .get("extension").expect("[config.output.extension] was not present. is required.")
+                .as_str().expect("[config.output.extension] must be a string. wasn't.").into(),
+            num: output
+                .get("num").expect("[config.output.num] was not present. is required.")
+                .as_u64().expect("[config.output.num] must be a positive whole number. wasn't.") as usize,
+        },
     }
 }
 
@@ -72,22 +86,57 @@ pub fn parse_source(root_value: &serde_yaml::Value) -> SourceKind {
     }
 }
 
-pub enum ModeKind {
-    AsImage,
-    AsBytes,
-    AsMemoryMap,
+pub struct PreConvert {
+    pub format: String,
 }
 
-pub fn parse_mode(root_value: &serde_yaml::Value) -> ModeKind {
-    let mode = root_value
-        .get("mode").expect("[mode] was not present. is required.")
-        .as_str().expect("[mode] must be a string. wasn't.");
+impl PreConvert {
+    pub fn get_image_format(&self) -> Option<image::ImageFormat> {
+        image::ImageFormat::from_extension(&self.format)
+    }
+}
 
-    match mode {
-        "image" => ModeKind::AsImage,
-        "bytes" => ModeKind::AsBytes,
-        "memory_map" => ModeKind::AsMemoryMap,
-        _ => panic!("[mode] must be one of the following:\n\t- image\n\t- bytes\n\t- memory_map"),
+pub struct Features {
+    pub pre_convert: Option<PreConvert>,
+    pub memory_map: bool,
+    pub parallel: bool,
+    pub sequential: bool,
+}
+
+pub fn parse_features(root_value: &serde_yaml::Value) -> Features {
+    let features = root_value
+        .get("features").expect("[features] was not present. is required.")
+        .as_mapping().expect("[features] must be a mapping. wasn't.");
+
+    let memory_map = features.get("memory-map")
+        .map(|val| val.as_bool().expect("[features.memory-map] must be a boolean. wasn't."))
+        .unwrap_or(false);
+
+    let parallel = features.get("parallel")
+        .map(|val| val.as_bool().expect("[features.parallel] must be a boolean. wasn't."))
+        .unwrap_or(false);
+
+    let sequential = features.get("sequential")
+        .map(|val| val.as_bool().expect("[features.sequential] must be a boolean. wasn't."))
+        .unwrap_or(false);
+
+    let pre_convert = features.get("pre-convert")
+        .map(|val| val.as_mapping().expect("[features.pre-convert] must be a boolean. wasn't."));
+
+    let pre_convert = if let Some(value) = pre_convert {
+        let format = value.get("format").expect("[features.pre-convert] requires the property [.format]")
+            .as_str().expect("[features.pre-convert.format] must be a string");
+
+        Some(PreConvert { format: format.into() })
+    } else {
+        None
+    };
+
+    Features {
+        pre_convert,
+        memory_map,
+        parallel,
+        sequential,
     }
 }
 

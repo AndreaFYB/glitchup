@@ -7,18 +7,19 @@ mod loaders;
 mod configuration;
 mod mutations2;
 mod config;
+mod preconvert;
 
-use std::{error::Error, io::{Cursor, Read}};
+use std::{clone, error::Error, io::{Cursor, Read}};
 
 use benders::KaBender;
-use config::{ioutils::{load_yaml_file, save_bytes_to_file}, parser::{parse_app_cfg, parse_mode, parse_mutations, parse_source, AppCfg}};
+use config::{ioutils::{load_yaml_file, save_bytes_to_file}, parser::{parse_app_cfg, parse_mutations, parse_source, AppCfg}};
 use configuration::Configuration;
 
 use image::{codecs::tiff::{TiffDecoder, TiffEncoder}, DynamicImage, ImageEncoder};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use rayon::prelude::*;
 
-use crate::{config::ioutils::load_as_image_from_bytes, mutations2::{local::{Expand, Increment}, AreaType, Mutation}};
+use crate::{config::{ioutils::{load_as_image_from_bytes, load_as_mmap_from_path}, parser::{parse_features, Features}}, mutations2::{local::{Expand, Increment}, AreaType, Mutation}, preconvert::generic_preconvert};
 
 fn main2() {
     // Initialises the configuration for the application.
@@ -42,64 +43,72 @@ fn main2() {
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut args = std::env::args();
-    let yaml = load_yaml_file(args.nth(1).unwrap())?;
+    let yaml = load_yaml_file(args.nth(1)
+        .expect("an argument must be passed that links to the configuration file - missing."))?;
 
-    let mode = parse_mode(&yaml);
     let source = parse_source(&yaml);
     let app_cfg = parse_app_cfg(&yaml);
+    let features = parse_features(&yaml);
 
     let mut rng = StdRng::from_entropy();
 
     let mut file = source.perform();
     
     // PRE-CONVERT
-    let format = image::ImageFormat::Tiff;
-    let mut image = load_as_image_from_bytes(&file)?;
-    // let mut file = image.into_luma8().into_raw();
-    // let mut image = load_as_image_from_bytes(&file)?;
-    let mut file = Vec::new();
-    image.write_to(&mut Cursor::new(&mut file), format)?;
-
-    // let mut cursor = Cursor::new(&mut file);
-    // let encoder = TiffEncoder::new(&mut cursor);
-    // encoder.encode(image.as_bytes(), image.width(), image.height(), image::ColorType::La8)?;
+    let extension = if let Some(pre_convert) = &features.pre_convert {
+        file = generic_preconvert(&file, pre_convert.get_image_format().expect("not a valid format"))?;
+        &pre_convert.format
+    } else {
+        &app_cfg.output.extension
+    };
     
     let bytesize = file.len();
     println!("file in memory has [{} bytes]", bytesize);
 
-    // let mut nums = vec![1, 2, 3, 4, 5, 6, 7, 8, 9];
-    // println!("nums = {:?}", nums);
-    // let testmut = Compress { by: 2, chunksize: 3 };
-    // testmut.bend(&mut nums);
-    // println!("nums = {:?}", nums);
+    for i in 0..app_cfg.output.num {
+        let new_file_path = format!("{}-{}.{}", app_cfg.output.path, i, extension);
 
-    // return Ok(());
+        let mut mutations = parse_mutations(&mut rng, &yaml);
+        if features.memory_map {
+            save_bytes_to_file(new_file_path.as_str(), &file)?;
+            let mut memory_map = load_as_mmap_from_path(&new_file_path)?;
+            mutate_bytes(&mut memory_map, &mut rng, &mut mutations)?;
+        }
 
-    for i in 0..app_cfg.output_n {
-        // comment this line out for sequence mode.
-        let mut file = file.clone();
-
-        let mutations = parse_mutations(&mut rng, &yaml);
-
-        for mutation in mutations.iter() {
-            // println!("applying mut: {} which acts in the area: {:?}", mutation.get_name(), mutation.get_type());
-            match mutation.get_type() {
-                AreaType::Global => {
-                    mutation.bend(&mut file)
-                },
-                AreaType::Local => {
-                    let chunksize = mutation.get_chunksize();
-                    let chunkstart = rng.gen_range(0, bytesize - chunksize);
-
-                    mutation.bend(
-                        &mut file[chunkstart..chunkstart+chunksize]);
-                }
-            }
-        };
-
-        // println!("saving to file: {}-{}.jpeg", app_cfg.output_path, i);
-        save_bytes_to_file(format!("{}-{}.{}", app_cfg.output_path, i, format.extensions_str()[0]).as_str(), &file)?;
+        if features.sequential {
+            mutate_bytes(&mut file, &mut rng, &mut mutations)?;
+            save_bytes_to_file(&new_file_path, &file)?;
+        } else {
+            let mut file = file.clone();
+            mutate_bytes(&mut file, &mut rng, &mut mutations)?;
+            save_bytes_to_file(&new_file_path, &file)?;
+        }
     }
+
+    Ok(())
+}
+
+fn mutate_bytes(
+    bytes: &mut [u8],
+    rng: &mut impl Rng,
+    mutations: &mut Vec<Box<dyn Mutation>>,
+) -> Result<(), Box<dyn Error>> {
+    let bytesize = bytes.len();
+    for mutation in mutations.iter() {
+        // println!("applying mut: {} which acts in the area: {:?}", mutation.get_name(), mutation.get_type());
+        match mutation.get_type() {
+            AreaType::Global => {
+                mutation.bend(bytes)
+            },
+            AreaType::Local => {
+                let chunksize = mutation.get_chunksize();
+                let chunkstart = rng.gen_range(0, bytesize - chunksize);
+
+                mutation.bend(
+                    &mut bytes[chunkstart..chunkstart+chunksize]);
+            }
+        }
+    };
 
     Ok(())
 }
